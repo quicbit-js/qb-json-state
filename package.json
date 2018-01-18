@@ -1,0 +1,34 @@
+{
+  "name": "qb-json-state",
+  "version": "1.0.0",
+  "description": "qb-json-state",
+  "homepage": "https://github.com/quicbit-js/qb-json-state",
+  "url": "https://github.com/quicbit-js/qb-json-state/issues",
+  "email": "support@quicbit.com",
+  "repository": "quicbit-js/qb-json-state",
+  "dependencies": {
+    "qb-src": "^1.0.0",
+    "qb-json-tokv": "^2.0.2"
+  },
+  "devDependencies": {
+    "qb-utf8-ez": "^3.1.1",
+    "tape": "^4.8.0",
+    "test-kit": "^2.7.2"
+  },
+  "scripts": {
+    "test": "tape test.js",
+    "cov": "tap --coverage-report=html test.js"
+  },
+  "keywords": [
+    "fast",
+    "compact",
+    "minimal",
+    "qb",
+    "qb1",
+    "quicbit",
+    "data",
+    "performance"
+  ],
+  "author": "Matthew Voss",
+  "license": "ISC"
+}
