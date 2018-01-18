@@ -298,7 +298,7 @@ function ps2obj (ps) {
     vcount: ps.vcount,
     koff: ps.koff,
     klim: ps.klim,
-    tok: String.fromCharCode(ps.tok),
+    tok: ps.tok && String.fromCharCode(ps.tok) || '',
     voff: ps.voff,
     vlim: ps.vlim,
     stack: ps.stack.map(function (c) { return String.fromCharCode(c) }).join(''),
