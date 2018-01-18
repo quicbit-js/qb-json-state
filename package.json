@@ -1,7 +1,7 @@
 {
   "name": "qb-json-state",
   "version": "1.0.0",
-  "description": "qb-json-state",
+  "description": "Functions for working with JSON parse state (see qb-json-tokv)",
   "homepage": "https://github.com/quicbit-js/qb-json-state",
   "url": "https://github.com/quicbit-js/qb-json-state/issues",
   "email": "support@quicbit.com",
