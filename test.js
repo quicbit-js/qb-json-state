@@ -17,6 +17,9 @@
 var test = require('test-kit').tape()
 var utf8 = require('qb-utf8-ez')
 var jstate = require('.')
+var TOK = jstate.TOK
+var ECODE = jstate.ECODE
+var POS = jstate.POS
 
 function args2ps (args) {
   var i = 0
@@ -50,6 +53,47 @@ function assert_encode (args, exp, t) {
   var exp2 = ps2args(ps_dec)
   t.same(ps_dec, ps, t.desc('decode', [exp], exp2))
 }
+
+test('pos2char', function (t) {
+  t.table_assert([
+    [ 'pos',         'trunc',      'exp' ],
+    [ 'OBJ_BFK',     1,      'FKK'  ],
+    [ 'OBJ_B_K',     1,      'JKK'  ],
+    [ 'OBJ_A_K',     0,      'L'  ],
+    [ 'OBJ_B_V',     1,      'UVV'  ],
+    [ 'OBJ_A_V',     0,      'W'  ],
+
+    [ 'ARR_BFV',     1,      'FVV'  ],
+    [ 'ARR_B_V',     1,      'UVV'  ],
+    [ 'ARR_A_V',     0,      'W'  ],
+  ], function (pos, trunc) {
+    var ret = jstate.pos2char(POS[pos], 0)
+    if (trunc) {
+      ret += jstate.pos2char(POS[pos], ECODE.TRUNCATED) + jstate.pos2char(POS[pos], ECODE.TRUNC_DEC)
+    }
+    return ret
+  })
+})
+
+test('char2pos', function (t) {
+  t.table_assert([
+    [ 'char',   'stack',      'exp' ],
+    [ null,    '{',           POS.ARR_BFV  ],
+    [ 'F',     '{',           POS.OBJ_BFK  ],
+    [ 'J',     '{',           POS.OBJ_B_K  ],
+    [ 'K',     '{',           POS.OBJ_B_K  ],
+    [ 'L',     '{',           POS.OBJ_A_K  ],
+    [ 'U',     '{',           POS.OBJ_B_V  ],
+    [ 'V',     '{',           POS.OBJ_B_V  ],
+    [ 'W',     '{',           POS.OBJ_A_V  ],
+    [ 'F',     '[',           POS.ARR_BFV  ],
+    [ 'U',     '[',           POS.ARR_B_V  ],
+    [ 'V',     '[',           POS.ARR_B_V  ],
+    [ 'W',     '[',           POS.ARR_A_V  ],
+  ], function (char, stack) {
+    return jstate.char2pos(char, stack.split('').map(function (c) { return c.charCodeAt(0) }))
+  })
+})
 
 test('encode/decode object', function (t) {
   t.table_assert([

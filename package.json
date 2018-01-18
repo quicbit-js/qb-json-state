@@ -7,7 +7,6 @@
   "email": "support@quicbit.com",
   "repository": "quicbit-js/qb-json-state",
   "dependencies": {
-    "qb-json-tokv": "^3.0.0",
     "qb-src": "^1.0.0"
   },
   "devDependencies": {
