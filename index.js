@@ -15,46 +15,10 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 var qbsrc = require('qb-src')
-
-// codes - same as in qb-json-next
-var POS = {
-  ARR_BFV: 0x080,
-  ARR_B_V: 0x100,
-  ARR_A_V: 0x180,
-  OBJ_BFK: 0x200,
-  OBJ_B_K: 0x280,
-  OBJ_A_K: 0x300,
-  OBJ_B_V: 0x380,
-  OBJ_A_V: 0x400,
-}
-
-// ascii tokens as well as special codes for number, error, begin and end.
-var TOK = {
-  // ascii codes - for all but decimal, token is represented by the first ascii byte encountered
-  ARR:      91,   // '['
-  ARR_END:  93,   // ']'
-  DEC:      100,  // 'd'  - a decimal value starting with: -, 0, 1, ..., 9
-  FAL:      102,  // 'f'
-  NUL:      110,  // 'n'
-  STR:      115,  // 's'  - a string value starting with "
-  TRU:      116,  // 't'
-  OBJ:      123,  // '{'
-  OBJ_END:  125,  // '}'
-
-  // CAPITAL asciii is used for special start/end codes
-
-  // tokenize() special codes
-  BEG: 66,          // 'B'  (B)egin src.  about to tokenize a new src.
-  END: 69,          // 'E'  (E)nd src. finished parsing a src.  check ps.ecode for more information.
-}
-
-var ECODE = {
-  // when a tokenize() finishes a src, a non-zero ps.ecode indicates an abnormal/special end state:
-  BAD_VALUE: 66,    // 'B'  encountered invalid byte or series of bytes
-  TRUNC_DEC: 68,    // 'D'  end of buffer was value was a decimal ending with a digit (0-9). it is *possibly* unfinished
-  TRUNCATED: 84,    // 'T'  key or value was unfinished at end of buffer
-  UNEXPECTED: 85,   // 'U'  encountered a recognized token in wrong place/context
-}
+var next = require('qb-json-next')
+var POS = next.POS
+var TOK = next.TOK
+var ECODE = next.ECODE
 
 function err (msg) { throw Error(msg) }
 
@@ -65,39 +29,39 @@ function err (msg) { throw Error(msg) }
 function pos2char (pos, ecode) {
   if (ecode === ECODE.TRUNCATED || ecode === ECODE.TRUNC_DEC) {
     switch (pos) {
-      case POS.OBJ_BFK: case POS.OBJ_B_K: return 'K'
-      case POS.ARR_BFV: case POS.ARR_B_V: case POS.OBJ_B_V: return 'V'
+      case POS.O_BF: case POS.O_BK: return 'K'
+      case POS.A_BF: case POS.A_BV: case POS.O_BV: return 'V'
       default: err('position not compatible with truncated or bad value: ' + pos.toString(16))
     }
   }
   switch (pos) {
-    case POS.ARR_BFV: case POS.OBJ_BFK: return 'F'
-    case POS.OBJ_B_K: return 'J'
-    case POS.OBJ_A_K: return 'L'
-    case POS.ARR_B_V: case POS.OBJ_B_V: return 'U'
-    case POS.ARR_A_V: case POS.OBJ_A_V: return 'W'
+    case POS.A_BF: case POS.O_BF: return 'F'
+    case POS.O_BK: return 'J'
+    case POS.O_AK: return 'L'
+    case POS.A_BV: case POS.O_BV: return 'U'
+    case POS.A_AV: case POS.O_AV: return 'W'
   }
 }
 
 // convert public ascii code back to position
 function char2pos (char, stack) {
   if (char == null) {
-    return POS.ARR_BFV
+    return POS.A_BF
   }
   if (stack[stack.length - 1] === 123) {
     switch (char) {
-      case 'F': return POS.OBJ_BFK
-      case 'J': case 'K': return POS.OBJ_B_K
-      case 'L': return POS.OBJ_A_K
-      case 'U': case 'V': return POS.OBJ_B_V
-      case 'W': return POS.OBJ_A_V
+      case 'F': return POS.O_BF
+      case 'J': case 'K': return POS.O_BK
+      case 'L': return POS.O_AK
+      case 'U': case 'V': return POS.O_BV
+      case 'W': return POS.O_AV
       default: err('cannot restore object position "' + char + '"')
     }
   } else {
     switch (char) {
-      case 'F': return POS.ARR_BFV
-      case 'U': case 'V': return POS.ARR_B_V
-      case 'W': return POS.ARR_A_V
+      case 'F': return POS.A_BF
+      case 'U': case 'V': return POS.A_BV
+      case 'W': return POS.A_AV
       default: err('cannot restore array position "' + char + '"')
     }
   }
@@ -158,7 +122,7 @@ function decode (s) {
     vcount: vcount,
     koff: 0,
     klim: 0,
-    tok: TOK.END,     // todo: encode or restore from src
+    tok: 0,     // todo: encode or restore from src
     voff: 0,
     vlim: vlim,
     stack: stack,
@@ -180,22 +144,6 @@ function decode (s) {
   return ps
 }
 
-var NO_LEN_TOKENS = map_ascii('tfn[]{}()', 1)
-// a convenience function for summarizing/logging/debugging callback arguments as compact strings
-// converts the 'arguments' array from cb into a terse string code.
-// only show value lengths for string, decimal, end and error tokens.
-function tokstr (ps) {
-  var tchar = String.fromCharCode(ps.tok)
-  var keystr = ps.koff === ps.klim ? '' : 'k' + (ps.klim - ps.koff) + '@' + ps.koff + ':'
-  var vlen = (NO_LEN_TOKENS[tchar] || ps.vlim === ps.voff) ? '' : ps.vlim - ps.voff
-
-  var ret = keystr + tchar + vlen + '@' + ps.voff
-  if (ps.ecode) {
-    ret += '!' + String.fromCharCode(ps.ecode)
-  }
-  return ret
-}
-
 function in_obj (stack) {
   return stack[stack.length - 1] === 123
 }
@@ -204,21 +152,21 @@ function in_obj (stack) {
 function pos_str (ps) {
   if (ps.ecode === ECODE.TRUNCATED) {
     switch (ps.pos) {
-      case POS.OBJ_BFK: case POS.OBJ_B_K: return 'in key'
-      case POS.OBJ_B_V: return 'in object value'
-      case POS.ARR_B_V: case POS.ARR_BFV: return 'in value'
+      case POS.O_BF: case POS.O_BK: return 'in key'
+      case POS.O_BV: return 'in object value'
+      case POS.A_BV: case POS.A_BF: return 'in value'
       default: err('ambiguous position')
     }
   } else {
     switch (ps.pos) {
-      case POS.OBJ_BFK: return 'before first key'
-      case POS.OBJ_B_K: return 'before key'
-      case POS.OBJ_A_K: return 'after key'
-      case POS.OBJ_B_V: return 'before object value'
-      case POS.ARR_B_V: return 'before value'
-      case POS.OBJ_A_V: return 'after object value'
-      case POS.ARR_A_V: return 'after value'
-      case POS.ARR_BFV: return 'before first value'
+      case POS.O_BF: return 'before first key'
+      case POS.O_BK: return 'before key'
+      case POS.O_AK: return 'after key'
+      case POS.O_BV: return 'before object value'
+      case POS.A_BV: return 'before value'
+      case POS.O_AV: return 'after object value'
+      case POS.A_AV: return 'after value'
+      case POS.A_BF: return 'before first value'
       default: err('unknown position ' + ps.pos)
     }
   }
@@ -238,24 +186,24 @@ function explain (ps) {
       break
     case ECODE.TRUNC_DEC:
       switch (ps.pos) {
-        case POS.OBJ_B_V:
+        case POS.O_BV:
           ret = 'truncated object decimal'
           break
-        case POS.ARR_BFV: case POS.ARR_B_V:
+        case POS.A_BF: case POS.A_BV:
           ret = 'truncated decimal'
       }
       break
     case ECODE.TRUNCATED:
       switch (ps.pos) {
-        case POS.OBJ_BFK: case POS.OBJ_B_K:
+        case POS.O_BF: case POS.O_BK:
           ret = 'truncated key'
           off = ps.koff
           lim = ps.klim
           break
-        case POS.OBJ_B_V:
+        case POS.O_BV:
           ret = 'truncated object value'
           break
-        case POS.ARR_BFV: case POS.ARR_B_V:
+        case POS.A_BF: case POS.A_BV:
           ret = 'truncated value'
           break
         default:
@@ -313,7 +261,6 @@ module.exports = {
   ps2obj: ps2obj,
   obj2ps: obj2ps,
   explain: explain,
-  tokstr: tokstr,
   char2pos: char2pos,
   pos2char: pos2char,
   TOK: TOK,
