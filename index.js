@@ -129,7 +129,7 @@ function decode (s) {
     pos: pos,
     ecode: ecode,
   }
-  if (in_obj(ps.stack)) {
+  if (ps.stack[ps.stack.length - 1] === 123) {
     ps.voff = vlim - vlen
     ps.klim = ps.voff - gap
     if (kvlen) {
@@ -142,81 +142,6 @@ function decode (s) {
     ps.voff = vlim - kvlen
   }
   return ps
-}
-
-function in_obj (stack) {
-  return stack[stack.length - 1] === 123
-}
-
-// just handles required cases from explain()
-function pos_str (ps) {
-  if (ps.ecode === ECODE.TRUNCATED) {
-    switch (ps.pos) {
-      case POS.O_BF: case POS.O_BK: return 'in key'
-      case POS.O_BV: return 'in object value'
-      case POS.A_BV: case POS.A_BF: return 'in value'
-      default: err('ambiguous position')
-    }
-  } else {
-    switch (ps.pos) {
-      case POS.O_BF: return 'before first key'
-      case POS.O_BK: return 'before key'
-      case POS.O_AK: return 'after key'
-      case POS.O_BV: return 'before object value'
-      case POS.A_BV: return 'before value'
-      case POS.O_AV: return 'after object value'
-      case POS.A_AV: return 'after value'
-      case POS.A_BF: return 'before first value'
-      default: err('unknown position ' + ps.pos)
-    }
-  }
-}
-
-// explain ps as a human-readable string (error state, relative position and offset location(s))
-function explain (ps) {
-  var off = ps.voff
-  var lim = ps.vlim
-  var ret
-  switch (ps.ecode) {
-    case ECODE.UNEXPECTED:
-      ret = 'unexpected value'
-      break
-    case ECODE.BAD_VALUE:
-      ret = 'bad value'
-      break
-    case ECODE.TRUNC_DEC:
-      switch (ps.pos) {
-        case POS.O_BV:
-          ret = 'truncated object decimal'
-          break
-        case POS.A_BF: case POS.A_BV:
-          ret = 'truncated decimal'
-      }
-      break
-    case ECODE.TRUNCATED:
-      switch (ps.pos) {
-        case POS.O_BF: case POS.O_BK:
-          ret = 'truncated key'
-          off = ps.koff
-          lim = ps.klim
-          break
-        case POS.O_BV:
-          ret = 'truncated object value'
-          break
-        case POS.A_BF: case POS.A_BV:
-          ret = 'truncated value'
-          break
-        default:
-          err('ambiguous position')
-      }
-      break
-    case 0:
-      ret = (ps.vlim < ps.lim ? '' : 'at limit ') + pos_str(ps)
-      break
-    default:
-      err('unknown ecode: ' + ps.ecode)
-  }
-  return ret + ', ' + qbsrc.context_str(ps.src, off, lim, 5, 5, 20)
 }
 
 // convert human-readable object into ps object
@@ -260,10 +185,6 @@ module.exports = {
   decode: decode,
   ps2obj: ps2obj,
   obj2ps: obj2ps,
-  explain: explain,
   char2pos: char2pos,
   pos2char: pos2char,
-  TOK: TOK,
-  ECODE: ECODE,
-  POS: POS,
 }
